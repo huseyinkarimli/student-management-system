@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <script>
+    if (sessionStorage.getItem('jwt_token')) {
+      window.location.replace('pages/dashboard.html');
+    } else {
+      window.location.replace('login.html');
+    }
+  </script>
+</head>
+<body></body>
+</html>

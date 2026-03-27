@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Daxil ol — EduCore SMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Cabinet+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <script>(function(){ const t=localStorage.getItem('theme'); if(t==='light') document.documentElement.setAttribute('data-theme','light'); })();</script>
+  <style>
+    :root{--bg:#05050a;--surface:#0d0d14;--surface2:#141420;--border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.12);--accent:#7b6ef6;--accent2:#f06292;--text:#eeeef5;--text2:#9898b0;--text3:#606078;--success:#4caf82;--danger:#ef5f5f;}
+    [data-theme="light"]{--bg:#f2f2f8;--surface:#ffffff;--surface2:#f8f8fc;--border:rgba(0,0,0,0.07);--border2:rgba(0,0,0,0.14);--text:#12121e;--text2:#606080;--text3:#9898b0;}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Cabinet Grotesk',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:grid;grid-template-columns:1fr 1fr;-webkit-font-smoothing:antialiased;}
+    /* LEFT */
+    .left{position:relative;display:flex;flex-direction:column;justify-content:center;padding:60px;overflow:hidden;background:var(--surface);}
+    .left-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(123,110,246,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(123,110,246,0.04) 1px,transparent 1px);background-size:50px 50px;}
+    .left-glow{position:absolute;bottom:-100px;left:-100px;width:400px;height:400px;background:radial-gradient(circle,rgba(123,110,246,0.12) 0%,transparent 65%);}
+    .left-glow2{position:absolute;top:-80px;right:-80px;width:300px;height:300px;background:radial-gradient(circle,rgba(240,98,146,0.08) 0%,transparent 65%);}
+    .brand{position:relative;z-index:2;display:flex;align-items:center;gap:12px;margin-bottom:64px;}
+    .brand-mark{width:42px;height:42px;background:linear-gradient(135deg,#7b6ef6,#f06292);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;}
+    .brand-name{font-family:'Clash Display',sans-serif;font-size:20px;font-weight:600;color:var(--text);}
+    .hero{position:relative;z-index:2;}
+    .hero-tag{display:inline-flex;align-items:center;gap:8px;background:rgba(123,110,246,0.1);border:1px solid rgba(123,110,246,0.2);color:#a89fff;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:6px 14px;border-radius:100px;margin-bottom:24px;}
+    .hero-dot{width:6px;height:6px;border-radius:50%;background:#7b6ef6;animation:pulse 2s infinite;}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(.8);}}
+    .hero h1{font-family:'Clash Display',sans-serif;font-size:clamp(36px,4vw,54px);font-weight:700;line-height:1.05;letter-spacing:-.03em;margin-bottom:18px;}
+    .hero h1 em{font-style:normal;background:linear-gradient(135deg,#7b6ef6,#f06292);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .hero p{font-size:16px;color:var(--text2);line-height:1.7;max-width:380px;margin-bottom:44px;}
+    .stats{display:flex;gap:36px;}
+    .stat-n{font-family:'Clash Display',sans-serif;font-size:28px;font-weight:700;}
+    .stat-l{font-size:12px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-top:2px;}
+    .float-cards{position:absolute;right:28px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:10px;z-index:2;}
+    .fc{background:rgba(255,255,255,0.03);border:1px solid var(--border2);border-radius:12px;padding:14px 18px;backdrop-filter:blur(12px);animation:float 4s ease-in-out infinite;}
+    .fc:nth-child(2){animation-delay:.8s;}
+    .fc:nth-child(3){animation-delay:1.6s;}
+    @keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-7px);}}
+    .fc-l{font-size:11px;color:var(--text3);margin-bottom:3px;}
+    .fc-v{font-family:'Clash Display',sans-serif;font-size:18px;font-weight:700;}
+    .green{color:#4caf82;}.purple{color:#7b6ef6;}
+    /* RIGHT */
+    .right{display:flex;align-items:center;justify-content:center;padding:60px 50px;background:var(--bg);}
+    .login-box{width:100%;max-width:390px;}
+    .login-h{margin-bottom:36px;}
+    .login-h h2{font-family:'Clash Display',sans-serif;font-size:28px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px;}
+    .login-h p{font-size:14px;color:var(--text2);}
+    .fg{margin-bottom:18px;}
+    .fl{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text2);margin-bottom:7px;}
+    .input-w{position:relative;}
+    .fi{width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'Cabinet Grotesk',sans-serif;font-size:14px;padding:12px 16px 12px 44px;border-radius:10px;outline:none;transition:border-color .2s,box-shadow .2s;}
+    .fi:focus{border-color:#7b6ef6;box-shadow:0 0 0 3px rgba(123,110,246,.14);}
+    .fi-icon{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;pointer-events:none;transition:color .2s;}
+    .input-w:focus-within .fi-icon{color:#7b6ef6;}
+    .tog-pass{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:4px;transition:color .2s;font-family:'Cabinet Grotesk',sans-serif;}
+    .tog-pass:hover{color:var(--text);}
+    .btn-login{width:100%;background:linear-gradient(135deg,#7b6ef6 0%,#9b8ef8 100%);color:#fff;font-family:'Cabinet Grotesk',sans-serif;font-size:15px;font-weight:500;border:none;border-radius:10px;padding:13px;cursor:pointer;transition:opacity .2s,box-shadow .2s;margin-top:6px;position:relative;}
+    .btn-login:hover{opacity:.9;box-shadow:0 8px 28px rgba(123,110,246,.4);}
+    .btn-login:active{transform:scale(.98);}
+    .btn-login:disabled{opacity:.6;cursor:not-allowed;}
+    .btn-spin{display:none;width:17px;height:17px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .divider{display:flex;align-items:center;gap:12px;margin:20px 0;}
+    .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border);}
+    .divider span{font-size:12px;color:var(--text3);}
+    .btn-reg{width:100%;background:transparent;color:var(--text);font-family:'Cabinet Grotesk',sans-serif;font-size:14px;font-weight:500;border:1px solid var(--border);border-radius:10px;padding:12px;cursor:pointer;transition:border-color .2s,background .2s;}
+    .btn-reg:hover{border-color:var(--border2);background:rgba(255,255,255,.03);}
+    .toast-host{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;}
+    .toast{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:13px 16px;min-width:260px;box-shadow:0 8px 32px rgba(0,0,0,.5);animation:ti .4s cubic-bezier(.34,1.56,.64,1);}
+    .toast.success{border-color:rgba(76,175,130,.35);}
+    .toast.error{border-color:rgba(239,95,95,.35);}
+    .ti{font-size:14px;}.toast.success .ti{color:#4caf82;}.toast.error .ti{color:#ef5f5f;}
+    .tm{font-size:13px;}
+    @keyframes ti{from{opacity:0;transform:translateX(28px);}to{opacity:1;transform:translateX(0);}}
+    .credit{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);font-size:12px;color:var(--text3);}
+    @media(max-width:768px){body{grid-template-columns:1fr;}.left{display:none;}.right{padding:40px 24px;}}
+  </style>
+</head>
+<body>
+<div class="left">
+  <div class="left-grid"></div>
+  <div class="left-glow"></div>
+  <div class="left-glow2"></div>
+  <div class="brand">
+    <div class="brand-mark">🎓</div>
+    <span class="brand-name">EduCore SMS</span>
+  </div>
+  <div class="hero">
+    <div class="hero-tag"><span class="hero-dot"></span>Tələbə İdarəetmə Sistemi</div>
+    <h1>Akademik<br/>gələcəyi<br/><em>formalaşdırın</em></h1>
+    <p>Tələbələr, kurslar, tapşırıqlar, davamiyyət — hamısı bir platformada. Müasir, sürətli, etibarlı.</p>
+    <div class="stats">
+      <div><div class="stat-n">∞</div><div class="stat-l">Tələbə</div></div>
+      <div><div class="stat-n">24/7</div><div class="stat-l">Aktiv</div></div>
+      <div><div class="stat-n">100%</div><div class="stat-l">Etibarlı</div></div>
+    </div>
+  </div>
+  <div class="float-cards">
+    <div class="fc"><div class="fc-l">Bu gün davamiyyət</div><div class="fc-v green">↑ 94%</div></div>
+    <div class="fc"><div class="fc-l">Aktiv kurslar</div><div class="fc-v purple">12</div></div>
+    <div class="fc"><div class="fc-l">Tapşırıqlar</div><div class="fc-v" style="color:#f6c453">8 açıq</div></div>
+  </div>
+</div>
+
+<div class="right">
+  <div class="login-box">
+    <div class="login-h">
+      <h2>Xoş gəldiniz 👋</h2>
+      <p>Davam etmək üçün hesabınıza daxil olun</p>
+    </div>
+    <form id="loginForm">
+      <div class="fg">
+        <label class="fl">İstifadəçi adı</label>
+        <div class="input-w">
+          <input type="text" class="fi" id="username" placeholder="username" autocomplete="username" required/>
+          <i class="fi-icon fa-regular fa-user"></i>
+        </div>
+      </div>
+      <div class="fg">
+        <label class="fl">Şifrə</label>
+        <div class="input-w">
+          <input type="password" class="fi" id="password" placeholder="••••••••" autocomplete="current-password" required/>
+          <i class="fi-icon fa-solid fa-lock"></i>
+          <button type="button" class="tog-pass" id="togglePass"><i class="fa-regular fa-eye"></i></button>
+        </div>
+      </div>
+      <button type="submit" class="btn-login" id="btnLogin">
+        <span id="btnTxt">Daxil ol</span>
+        <div class="btn-spin" id="btnSpin"></div>
+      </button>
+    </form>
+    <div class="divider"><span>və ya</span></div>
+    <button class="btn-reg" onclick="window.location.href='register.html'">Yeni hesab yarat</button>
+  </div>
+</div>
+
+<div class="toast-host" id="toast-host"></div>
+<div class="credit">@ by Huseyin Karimli</div>
+
+<script>
+  const BASE='';
+  document.getElementById('togglePass').addEventListener('click',function(){
+    const i=document.getElementById('password'),ic=this.querySelector('i');
+    if(i.type==='password'){i.type='text';ic.className='fa-regular fa-eye-slash';}
+    else{i.type='password';ic.className='fa-regular fa-eye';}
+  });
+  function toast(msg,type='error'){
+    const h=document.getElementById('toast-host');
+    const t=document.createElement('div');t.className='toast '+type;
+    const ic=type==='success'?'fa-circle-check':'fa-circle-exclamation';
+    t.innerHTML=`<i class="ti fa-solid ${ic}"></i><span class="tm">${msg}</span>`;
+    h.appendChild(t);
+    setTimeout(()=>{t.style.animation='none';t.style.opacity='0';t.style.transform='translateX(28px)';t.style.transition='all .3s';setTimeout(()=>t.remove(),300);},3600);
+  }
+  document.getElementById('loginForm').addEventListener('submit',async e=>{
+    e.preventDefault();
+    const u=document.getElementById('username').value.trim();
+    const p=document.getElementById('password').value;
+    const btn=document.getElementById('btnLogin');
+    document.getElementById('btnTxt').style.display='none';
+    document.getElementById('btnSpin').style.display='block';
+    btn.disabled=true;
+    try{
+      const res=await fetch(BASE+'/apis/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+      if(!res.ok){const t=await res.text();throw new Error(t||'Giriş uğursuz oldu');}
+      const data=await res.json();
+      sessionStorage.setItem('jwt_token',data.token||data.jwt||data.accessToken);
+      if(data.refreshToken) sessionStorage.setItem('jwt_refresh',data.refreshToken);
+      sessionStorage.setItem('sms_user',u);
+      // Decode roles from JWT
+      try{
+        const payload=JSON.parse(atob((data.token||data.jwt||'').split('.')[1]||'{}'));
+        const roles=payload.roles||payload.authorities||[];
+        sessionStorage.setItem('sms_roles',JSON.stringify(roles));
+      }catch(_){}
+      toast('Uğurla daxil oldunuz!','success');
+      setTimeout(()=>window.location.href='pages/dashboard.html',700);
+    }catch(err){toast(err.message||'Xəta baş verdi');}
+    finally{btn.disabled=false;document.getElementById('btnTxt').style.display='block';document.getElementById('btnSpin').style.display='none';}
+  });
+</script>
+</body>
+</html>

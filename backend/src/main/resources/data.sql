@@ -1,0 +1,2 @@
+-- Data seeding is handled by DatabaseSeeder.java
+-- See: config/DatabaseSeeder.java

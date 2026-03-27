@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tapşırıqlar — EduCore SMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Cabinet+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="../../css/app.css"/>
+  <script src="../../js/app.js"></script>
+  <script src="../../js/layout.js"></script>
+  <script>(function(){ const t=localStorage.getItem('theme'); if(t==='light') document.documentElement.setAttribute('data-theme','light'); })();</script>
+  <style>
+    .assign-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;}
+    .ac{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;transition:transform .2s,box-shadow .2s;}
+    .ac:hover{transform:translateY(-2px);box-shadow:var(--shadow);}
+    .ac-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+    .ac-course{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:3px 9px;border-radius:6px;background:rgba(38,198,218,.1);color:var(--accent3);}
+    .ac-title{font-family:'Clash Display',sans-serif;font-size:15px;font-weight:600;margin-bottom:6px;}
+    .ac-desc{font-size:13px;color:var(--text2);margin-bottom:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+    .ac-foot{display:flex;align-items:center;justify-content:space-between;}
+    .ac-due{font-size:12px;color:var(--text2);}
+    .ac-due.overdue{color:var(--danger);}
+    .ac-score{font-family:'Clash Display',sans-serif;font-size:18px;font-weight:700;color:var(--accent);}
+    .sub-badge{font-size:11px;font-weight:600;padding:3px 9px;border-radius:100px;margin-top:10px;display:inline-block;}
+  </style>
+</head>
+<body>
+<div class="app-layout" id="app">
+  <div class="main-area">
+    <div class="page-content">
+      <div class="toolbar">
+        <div class="search-wrap">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" class="form-input" id="searchInp" placeholder="Tapşırıq adı, kurs..." oninput="onSearch()"/>
+        </div>
+        <select class="form-input form-select" id="courseSel" style="max-width:200px" onchange="onCourseFilter()">
+          <option value="">Bütün kurslar</option>
+        </select>
+        <button class="btn btn-primary btn-sm admin-only" style="display:none" onclick="openAdd()"><i class="fa-solid fa-plus"></i> Yeni tapşırıq</button>
+      </div>
+      <div class="assign-grid" id="assignGrid">
+        ${Array(6).fill('<div class="ac"><div class="skeleton" style="width:80px;height:17px;margin-bottom:12px;"></div><div class="skeleton" style="width:85%;height:15px;margin-bottom:8px;"></div><div class="skeleton" style="width:60%;height:13px;"></div></div>').join('')}
+      </div>
+    </div>
+    <div class="footer-credit">@ by Huseyin Karimli</div>
+  </div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-overlay" id="assignModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="aModalTitle">Yeni tapşırıq</span>
+      <button class="modal-close" onclick="closeModal('assignModal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <form id="assignForm" onsubmit="submitAssign(event)">
+      <input type="hidden" id="aId"/>
+      <div class="form-group"><label class="form-label">Kurs *</label>
+        <select class="form-input form-select" id="aCourse" required><option value="">— Kurs seçin —</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Başlıq *</label><input type="text" class="form-input" id="aTitle" required/></div>
+      <div class="form-group"><label class="form-label">Təsvir</label><textarea class="form-input form-textarea" id="aDesc"></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Son tarix</label><input type="datetime-local" class="form-input" id="aDue"/></div>
+        <div class="form-group"><label class="form-label">Maks. xal *</label><input type="number" class="form-input" id="aMax" min="1" value="100" required/></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('assignModal')">Ləğv et</button>
+        <button type="submit" class="btn btn-primary" id="aSubmit"><i class="fa-solid fa-check"></i> Saxla</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- SUBMISSIONS MODAL -->
+<div class="modal-overlay" id="subsModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <span class="modal-title" id="subsTitle">Göndərmələr</span>
+      <button class="modal-close" onclick="closeModal('subsModal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="subsList"></div>
+  </div>
+</div>
+
+<div id="toast-host" class="toast-host"></div>
+<script>
+document.getElementById('app').insertAdjacentHTML('afterbegin', renderSidebar('../../', 'assignments'));
+document.querySelector('.main-area').insertAdjacentHTML('afterbegin', renderTopbar('Tapşırıqlar'));
+initTheme(); if (!Auth.check()) throw ''; initSidebarUser();
+bindModalClose('assignModal'); bindModalClose('subsModal');
+
+let allAssigns = [], filtered = [], courses = [], selectedCourse = '';
+
+async function load() {
+  try {
+    courses = await api.courses.all().catch(() => []);
+    const sel = document.getElementById('courseSel');
+    courses.forEach(c => { const o = document.createElement('option'); o.value = c.id; o.textContent = c.name; sel.appendChild(o); });
+    if (Auth.isAdmin() || Auth.isTeacher()) {
+      document.querySelectorAll('.admin-only').forEach(e => e.style.display = '');
+      const ac = document.getElementById('aCourse');
+      courses.forEach(c => { const o = document.createElement('option'); o.value = c.id; o.textContent = c.name; ac.appendChild(o); });
+    }
+    // Load all assignments from all courses
+    const allP = await Promise.all(courses.map(c => api.assignments.byCourse(c.id).catch(() => [])));
+    allAssigns = allP.flat();
+    filtered = [...allAssigns];
+    render();
+  } catch(e) { showToast(e.message || 'Xəta', 'error'); }
+}
+
+function onSearch() { applyFilters(); }
+function onCourseFilter() { selectedCourse = document.getElementById('courseSel').value; applyFilters(); }
+function applyFilters() {
+  const q = document.getElementById('searchInp').value.toLowerCase().trim();
+  filtered = allAssigns.filter(a => {
+    const match = !q || `${a.title||''} ${a.courseName||''}`.toLowerCase().includes(q);
+    const cMatch = !selectedCourse || String(a.courseId) === selectedCourse;
+    return match && cMatch;
+  });
+  render();
+}
+
+function render() {
+  if (!filtered.length) {
+    document.getElementById('assignGrid').innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">📝</div><div class="empty-title">Tapşırıq tapılmadı</div><div class="empty-desc">Hələ tapşırıq yaradılmayıb.</div>${Auth.isAdmin()||Auth.isTeacher()?'<button class="btn btn-primary" onclick="openAdd()"><i class="fa-solid fa-plus"></i> Tapşırıq əlavə et</button>':''}</div>`;
+    return;
+  }
+  document.getElementById('assignGrid').innerHTML = filtered.map(a => {
+    const due = a.dueDate ? new Date(a.dueDate) : null;
+    const overdue = due && due < new Date();
+    return `<div class="ac">
+      <div class="ac-head">
+        <span class="ac-course">${a.courseCode||a.courseName||'—'}</span>
+        <div class="td-actions">
+          ${Auth.isAdmin()||Auth.isTeacher() ? `<button class="act-btn" onclick="openEdit(${a.id})" title="Redaktə"><i class="fa-solid fa-pen"></i></button><button class="act-btn danger" onclick="delAssign(${a.id})" title="Sil"><i class="fa-solid fa-trash"></i></button>` : ''}
+          <button class="act-btn success" onclick="viewSubs(${a.id},'${(a.title||'').replace(/'/g,"\\'")}')"><i class="fa-solid fa-list"></i></button>
+        </div>
+      </div>
+      <div class="ac-title">${a.title||'—'}</div>
+      <div class="ac-desc">${a.description||'Təsvir yoxdur'}</div>
+      <div class="ac-foot">
+        <span class="ac-due ${overdue?'overdue' : ''}">${due?due.toLocaleDateString('az')+' son tarix':'Son tarix yoxdur'}</span>
+        <span class="ac-score">${a.maxScore||0} xal</span>
+      </div>
+      ${a.submissionCount !== undefined ? `<span class="sub-badge badge badge-purple">${a.submissionCount} göndərmə</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function openAdd() {
+  document.getElementById('aModalTitle').textContent = 'Yeni tapşırıq';
+  document.getElementById('aId').value = '';
+  document.getElementById('assignForm').reset();
+  openModal('assignModal');
+}
+function openEdit(id) {
+  const a = allAssigns.find(x => x.id === id); if (!a) return;
+  document.getElementById('aModalTitle').textContent = 'Tapşırığı redaktə et';
+  document.getElementById('aId').value = a.id;
+  document.getElementById('aCourse').value = a.courseId || '';
+  document.getElementById('aTitle').value = a.title || '';
+  document.getElementById('aDesc').value = a.description || '';
+  document.getElementById('aDue').value = a.dueDate ? a.dueDate.slice(0,16) : '';
+  document.getElementById('aMax').value = a.maxScore || 100;
+  openModal('assignModal');
+}
+async function submitAssign(e) {
+  e.preventDefault();
+  const id = document.getElementById('aId').value;
+  const due = document.getElementById('aDue').value;
+  const body = { courseId: parseInt(document.getElementById('aCourse').value), title: document.getElementById('aTitle').value.trim(), description: document.getElementById('aDesc').value.trim(), dueDate: due ? new Date(due).toISOString() : null, maxScore: parseInt(document.getElementById('aMax').value) };
+  const btn = document.getElementById('aSubmit'); btn.disabled = true;
+  try {
+    if (id) await api.assignments.update(parseInt(id), body); else await api.assignments.create(body);
+    showToast(id ? 'Tapşırıq yeniləndi' : 'Tapşırıq əlavə edildi');
+    closeModal('assignModal'); load();
+  } catch(err) { showToast(err.message || 'Xəta', 'error'); }
+  finally { btn.disabled = false; }
+}
+async function delAssign(id) {
+  if (!confirm('Bu tapşırığı silmək istədiyinizə əminsiniz?')) return;
+  try { await api.assignments.delete(id); showToast('Tapşırıq silindi'); load(); }
+  catch(e) { showToast(e.message || 'Xəta', 'error'); }
+}
+
+async function viewSubs(aId, title) {
+  document.getElementById('subsTitle').textContent = title + ' — Göndərmələr';
+  document.getElementById('subsList').innerHTML = '<div class="skeleton" style="height:16px;width:80%;margin-bottom:8px;"></div>'.repeat(3);
+  openModal('subsModal');
+  try {
+    const subs = await api.submissions.byAssignment(aId);
+    if (!subs.length) { document.getElementById('subsList').innerHTML = '<div style="color:var(--text3);text-align:center;padding:20px">Göndərmə tapılmadı</div>'; return; }
+    document.getElementById('subsList').innerHTML = `<table><thead><tr><th>Tələbə</th><th>Göndərmə tarixi</th><th>Xal</th><th>Əməliyyat</th></tr></thead><tbody>${subs.map(s => `
+      <tr>
+        <td>${s.studentName||s.studentId||'—'}</td>
+        <td class="td-muted">${s.submittedAt ? new Date(s.submittedAt).toLocaleDateString('az') : '—'}</td>
+        <td>${s.score !== null && s.score !== undefined ? `<span class="badge ${s.score>=60?'badge-success':'badge-danger'}">${s.score}</span>` : '<span class="badge badge-info">—</span>'}</td>
+        <td><button class="act-btn success" onclick="gradePrompt(${s.id})" title="Qiymətləndir"><i class="fa-solid fa-star"></i></button></td>
+      </tr>`).join('')}</tbody></table>`;
+  } catch(e) { showToast(e.message || 'Xəta', 'error'); closeModal('subsModal'); }
+}
+
+async function gradePrompt(subId) {
+  const score = prompt('Xal daxil edin (0-100):');
+  if (score === null || score === '') return;
+  const feedback = prompt('Rəy (optional):') || '';
+  try {
+    await api.submissions.grade(subId, parseFloat(score), feedback);
+    showToast('Qiymət verildi');
+    document.querySelectorAll('[onclick*="gradePrompt"]').forEach(b => b.closest('tr').querySelectorAll('td')[2].innerHTML = `<span class="badge ${parseFloat(score)>=60?'badge-success':'badge-danger'}">${parseFloat(score)}</span>`);
+  } catch(e) { showToast(e.message || 'Xəta', 'error'); }
+}
+
+load();
+</script>
+</body>
+</html>

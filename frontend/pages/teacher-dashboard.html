@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Müəllim Paneli — EduCore SMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Cabinet+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="../css/app.css"/>
+  <script src="../js/app.js"></script>
+  <script src="../js/layout.js"></script>
+  <script>(function(){ const t=localStorage.getItem('theme'); if(t==='light') document.documentElement.setAttribute('data-theme','light'); })();</script>
+  <style>
+    .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+    .course-item{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);}
+    .course-item:last-child{border-bottom:none;}
+    .ci-name{font-size:14px;font-weight:500;}
+    .ci-code{font-size:11px;color:var(--text2);margin-top:2px;}
+    .pend-item{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);}
+    .pend-item:last-child{border-bottom:none;}
+    .pi-name{font-size:14px;font-weight:500;}
+    .pi-meta{font-size:12px;color:var(--text2);margin-top:2px;}
+    .assign-item{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--border);}
+    .assign-item:last-child{border-bottom:none;}
+    .ai-title{font-size:14px;font-weight:500;}
+    .ai-course{font-size:12px;color:var(--text2);}
+    .ai-due{font-size:12px;color:var(--text3);}
+    .ai-due.overdue{color:var(--danger);}
+    @media(max-width:900px){.two-col{grid-template-columns:1fr;}}
+  </style>
+</head>
+<body>
+<div class="app-layout" id="app">
+  <div class="main-area">
+    <div class="page-content">
+      <div class="stat-grid" id="statGrid">
+        <div class="stat-card"><div class="stat-card-glow"></div><div class="stat-icon si-purple skeleton" style="width:40px;height:40px;"></div><div class="skeleton" style="width:50px;height:28px;margin:14px 0 6px;"></div><div class="skeleton" style="width:80px;height:13px;"></div></div>
+        <div class="stat-card"><div class="stat-card-glow"></div><div class="stat-icon si-green skeleton" style="width:40px;height:40px;"></div><div class="skeleton" style="width:50px;height:28px;margin:14px 0 6px;"></div><div class="skeleton" style="width:90px;height:13px;"></div></div>
+        <div class="stat-card"><div class="stat-card-glow"></div><div class="stat-icon si-yellow skeleton" style="width:40px;height:40px;"></div><div class="skeleton" style="width:50px;height:28px;margin:14px 0 6px;"></div><div class="skeleton" style="width:100px;height:13px;"></div></div>
+        <div class="stat-card"><div class="stat-card-glow"></div><div class="stat-icon si-pink skeleton" style="width:40px;height:40px;"></div><div class="skeleton" style="width:50px;height:28px;margin:14px 0 6px;"></div><div class="skeleton" style="width:80px;height:13px;"></div></div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Kurslarım</div><a href="courses.html" class="btn btn-ghost btn-sm">Hamısı →</a></div>
+          <div class="card-body" id="myCoursesBody"><div class="skeleton" style="height:14px;width:70%;"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Gözləyən tapşırıqlar</div><a href="courses/assignments.html" class="btn btn-ghost btn-sm">Hamısı →</a></div>
+          <div class="card-body" id="pendingBody"><div class="skeleton" style="height:14px;width:70%;"></div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Tapşırıqlarım</div></div>
+        <div class="card-body" id="assignBody"><div class="skeleton" style="height:14px;width:80%;"></div></div>
+      </div>
+    </div>
+    <div class="footer-credit">@ by Huseyin Karimli</div>
+  </div>
+</div>
+
+<div id="toast-host" class="toast-host"></div>
+<script>
+document.getElementById('app').insertAdjacentHTML('afterbegin', renderSidebar('../', 'teacher-dashboard'));
+document.querySelector('.main-area').insertAdjacentHTML('afterbegin', renderTopbar('Müəllim Paneli'));
+initTheme(); if (!Auth.check()) throw ''; initSidebarUser();
+
+async function load() {
+  try {
+    const [dashboard, courses, assigns, pending] = await Promise.all([
+      api.teachers.dashboard().catch(() => null),
+      api.teachers.courses().catch(() => []),
+      api.teachers.assignments().catch(() => []),
+      api.teachers.pendingSubmissions().catch(() => []),
+    ]);
+
+    // Stats
+    document.getElementById('statGrid').innerHTML = `
+      <div class="stat-card"><div class="stat-card-glow"></div><div class="stat-icon si-purple"><i class="fa-solid fa-book-open"></i></div><div class="stat-val">${courses.length}</div><div class="stat-label">Kurslarım</div></div>
+      <div class="stat-card"><div class="stat-card-glow"></div><div class="stat-icon si-green"><i class="fa-solid fa-users"></i></div><div class="stat-val">${dashboard?.totalStudents??'—'}</div><div class="stat-label">Tələbələrim</div></div>
+      <div class="stat-card"><div class="stat-card-glow"></div><div class="stat-icon si-yellow"><i class="fa-solid fa-file-lines"></i></div><div class="stat-val">${assigns.length}</div><div class="stat-label">Tapşırıqlar</div></div>
+      <div class="stat-card"><div class="stat-card-glow"></div><div class="stat-icon si-pink"><i class="fa-solid fa-hourglass-half"></i></div><div class="stat-val">${pending.length}</div><div class="stat-label">Gözləyən</div></div>`;
+
+    // My courses
+    if (!courses.length) { document.getElementById('myCoursesBody').innerHTML = '<div style="color:var(--text3);font-size:14px">Kurs tapılmadı</div>'; }
+    else document.getElementById('myCoursesBody').innerHTML = courses.slice(0,5).map(c => `
+      <div class="course-item">
+        <div><div class="ci-name">${c.name||'—'}</div><div class="ci-code">${c.code||'—'} • ${c.credits||0} kredit</div></div>
+        <span class="badge badge-purple">${c.credits||0} kr</span>
+      </div>`).join('');
+
+    // Pending submissions
+    if (!pending.length) { document.getElementById('pendingBody').innerHTML = '<div style="color:var(--text3);font-size:14px">Gözləyən tapşırıq yoxdur 🎉</div>'; }
+    else document.getElementById('pendingBody').innerHTML = pending.slice(0,5).map(p => `
+      <div class="pend-item">
+        <div><div class="pi-name">${p.studentName||p.assignmentTitle||'—'}</div><div class="pi-meta">${p.assignmentTitle||p.courseName||'—'}</div></div>
+        <button class="act-btn success" onclick="alert('Qiymətləndirmə ${p.id}')"><i class="fa-solid fa-star"></i></button>
+      </div>`).join('');
+
+    // Assignments
+    if (!assigns.length) { document.getElementById('assignBody').innerHTML = '<div style="color:var(--text3);font-size:14px">Tapşırıq tapılmadı</div>'; }
+    else document.getElementById('assignBody').innerHTML = assigns.map(a => {
+      const due = a.dueDate ? new Date(a.dueDate) : null;
+      const overdue = due && due < new Date();
+      return `<div class="assign-item">
+        <div><div class="ai-title">${a.title||'—'}</div><div class="ai-course">${a.courseName||'—'}</div></div>
+        <div style="text-align:right">
+          <div class="ai-due ${overdue?'overdue' : ''}">${due ? due.toLocaleDateString('az') : '—'}</div>
+          <div style="font-size:12px;color:var(--text2)">${a.maxScore||0} xal</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { showToast(e.message || 'Xəta', 'error'); }
+}
+
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mənim Kurslarım — EduCore SMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Cabinet+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="../css/app.css"/>
+  <script src="../js/app.js"></script>
+  <script src="../js/layout.js"></script>
+  <script>(function(){ const t=localStorage.getItem('theme'); if(t==='light') document.documentElement.setAttribute('data-theme','light'); })();</script>
+  <style>
+    .enroll-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px;transition:transform .2s,box-shadow .2s;}
+    .enroll-card:hover{transform:translateY(-2px);box-shadow:var(--shadow);}
+    .ec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+    .ec-code{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:4px 10px;border-radius:6px;background:var(--accent-dim);color:var(--accent);}
+    .ec-name{font-family:'Clash Display',sans-serif;font-size:16px;font-weight:600;margin-bottom:6px;}
+    .ec-desc{font-size:13px;color:var(--text2);margin-bottom:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+    .grade-box{display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border-radius:10px;padding:12px 16px;margin-top:12px;}
+    .grade-label{font-size:12px;color:var(--text2);}
+    .grade-val{font-family:'Clash Display',sans-serif;font-size:22px;font-weight:700;}
+    .grade-val.none{color:var(--text3);font-size:16px;}
+    .grade-val.high{color:var(--success);}
+    .grade-val.mid{color:var(--warning);}
+    .grade-val.low{color:var(--danger);}
+    .assign-btn{margin-top:12px;width:100%;}
+    .grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;}
+    .tabs{display:flex;gap:4px;margin-bottom:22px;border-bottom:1px solid var(--border);padding-bottom:0;}
+    .tab-btn{padding:10px 18px;border:none;background:none;color:var(--text2);font-size:14px;font-weight:500;cursor:pointer;transition:color .15s;border-bottom:2px solid transparent;margin-bottom:-1px;}
+    .tab-btn:hover{color:var(--text);}
+    .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+    .sub-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);}
+    .sub-row:last-child{border-bottom:none;}
+    .sub-name{font-size:14px;font-weight:500;}
+    .sub-meta{font-size:12px;color:var(--text2);margin-top:2px;}
+  </style>
+</head>
+<body>
+<div class="app-layout" id="app">
+  <div class="main-area">
+    <div class="page-content">
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('courses',this)">Kurslarım</button>
+        <button class="tab-btn" onclick="switchTab('submissions',this)">Tapşırıq göndərmələrim</button>
+      </div>
+
+      <!-- COURSES TAB -->
+      <div id="tab-courses">
+        <div class="grid2" id="enrollGrid">
+          ${Array(4).fill('<div class="enroll-card"><div class="skeleton" style="width:70px;height:18px;margin-bottom:14px;"></div><div class="skeleton" style="width:85%;height:17px;margin-bottom:8px;"></div><div class="skeleton" style="width:60%;height:13px;"></div></div>').join('')}
+        </div>
+      </div>
+
+      <!-- SUBMISSIONS TAB -->
+      <div id="tab-submissions" style="display:none">
+        <div class="card">
+          <div class="card-body" id="subBody">
+            <div class="skeleton" style="height:16px;width:200px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer-credit">@ by Huseyin Karimli</div>
+  </div>
+</div>
+
+<!-- ASSIGNMENT DETAIL MODAL -->
+<div class="modal-overlay" id="assignModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <span class="modal-title">Tapşırıqlar</span>
+      <button class="modal-close" onclick="closeModal('assignModal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="assignList"><div class="skeleton" style="height:16px;width:80%;margin-bottom:8px;"></div></div>
+  </div>
+</div>
+
+<div id="toast-host" class="toast-host"></div>
+<script>
+document.getElementById('app').insertAdjacentHTML('afterbegin', renderSidebar('../', 'my-courses'));
+document.querySelector('.main-area').insertAdjacentHTML('afterbegin', renderTopbar('Mənim Kurslarım'));
+initTheme(); if (!Auth.check()) throw ''; initSidebarUser();
+bindModalClose('assignModal');
+
+let myEnrollments = [], myStudentId = null;
+
+async function load() {
+  try {
+    // Get current student — find by username in students list
+    const students = await api.students.all().catch(() => []);
+    const me = students.find(s => (s.email||'').includes(Auth.getUser())) || students[0];
+    myStudentId = me ? me.id : null;
+    if (myStudentId) {
+      myEnrollments = await api.enrollments.byStudent(myStudentId).catch(() => []);
+    } else {
+      myEnrollments = [];
+    }
+    renderEnrollments();
+  } catch(e) { showToast(e.message || 'Xəta', 'error'); }
+}
+
+function renderEnrollments() {
+  if (!myEnrollments.length) {
+    document.getElementById('enrollGrid').innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">📖</div><div class="empty-title">Kurs tapılmadı</div><div class="empty-desc">Hələ heç bir kursa qeydiyyatdan keçməmişsiniz.</div><a href="courses.html" class="btn btn-primary">Kurslara bax</a></div>`;
+    return;
+  }
+  document.getElementById('enrollGrid').innerHTML = myEnrollments.map(e => {
+    const g = e.grade;
+    const gClass = g === null || g === undefined ? 'none' : g >= 85 ? 'high' : g >= 60 ? 'mid' : 'low';
+    const gText = g === null || g === undefined ? '—' : g.toFixed(1);
+    return `<div class="enroll-card">
+      <div class="ec-head">
+        <span class="ec-code">${e.courseCode||'—'}</span>
+        <span class="badge ${g===null||g===undefined?'badge-info':'g>=60?badge-success:badge-danger'}">${g===null||g===undefined?'Qiymət yoxdur':g>=85?'Əla':g>=60?'Keçid':'Zəif'}</span>
+      </div>
+      <div class="ec-name">${e.courseName||'—'}</div>
+      <div class="ec-desc">${e.courseDescription||'Kurs haqqında məlumat yoxdur'}</div>
+      <div class="grade-box">
+        <div><div class="grade-label">Qiymət</div><div class="grade-val ${gClass}">${gText}</div></div>
+        <div style="text-align:right"><div class="grade-label">Kredit</div><div style="font-family:var(--font-display);font-size:18px;font-weight:700">${e.courseCredits||'—'}</div></div>
+      </div>
+      <button class="btn btn-ghost btn-sm assign-btn" onclick="openAssignments(${e.courseId},'${(e.courseName||'').replace(/'/g,"\\'")}')"><i class="fa-solid fa-file-lines"></i> Tapşırıqlara bax</button>
+    </div>`;
+  }).join('');
+}
+
+async function loadSubmissions() {
+  if (!myStudentId) { document.getElementById('subBody').innerHTML = '<div style="color:var(--text3);text-align:center;padding:30px">Tələbə məlumatı tapılmadı</div>'; return; }
+  try {
+    const subs = await api.submissions.byStudent(myStudentId);
+    if (!subs.length) { document.getElementById('subBody').innerHTML = '<div style="color:var(--text3);text-align:center;padding:30px">Göndərmə tapılmadı</div>'; return; }
+    document.getElementById('subBody').innerHTML = subs.map(s => `
+      <div class="sub-row">
+        <div>
+          <div class="sub-name">${s.assignmentTitle||'Tapşırıq'}</div>
+          <div class="sub-meta">${s.courseName||'—'} • ${s.submittedAt ? new Date(s.submittedAt).toLocaleDateString('az') : '—'}</div>
+        </div>
+        <div style="text-align:right">
+          ${s.score !== null && s.score !== undefined ? `<span class="badge ${s.score>=60?'badge-success':'badge-danger'}">${s.score} xal</span>` : '<span class="badge badge-info">Qiymətləndirilməyib</span>'}
+          ${s.feedback ? `<div style="font-size:12px;color:var(--text2);margin-top:4px">${s.feedback}</div>` : ''}
+        </div>
+      </div>`).join('');
+  } catch(e) { showToast(e.message || 'Xəta', 'error'); }
+}
+
+async function openAssignments(cId, cName) {
+  document.getElementById('assignList').innerHTML = '<div class="skeleton" style="height:16px;width:80%;margin-bottom:8px;"></div>'.repeat(3);
+  openModal('assignModal');
+  try {
+    const assigns = await api.assignments.byCourse(cId);
+    if (!assigns.length) { document.getElementById('assignList').innerHTML = '<div style="color:var(--text3);text-align:center;padding:20px">Tapşırıq tapılmadı</div>'; return; }
+    document.getElementById('assignList').innerHTML = assigns.map(a => {
+      const due = a.dueDate ? new Date(a.dueDate) : null;
+      const overdue = due && due < new Date();
+      return `<div class="sub-row">
+        <div>
+          <div class="sub-name">${a.title||'—'}</div>
+          <div class="sub-meta">${a.description||''}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:12px;color:${overdue?'var(--danger)':'var(--text2)'}">${due ? due.toLocaleDateString('az') + ' son tarix' : '—'}</div>
+          <div style="font-family:var(--font-display);font-size:15px;font-weight:600;margin-top:2px">${a.maxScore||0} xal</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { showToast(e.message || 'Xəta', 'error'); closeModal('assignModal'); }
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-courses').style.display = name === 'courses' ? '' : 'none';
+  document.getElementById('tab-submissions').style.display = name === 'submissions' ? '' : 'none';
+  if (name === 'submissions') loadSubmissions();
+}
+
+load();
+</script>
+</body>
+</html>

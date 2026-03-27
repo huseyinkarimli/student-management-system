@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Davamiyyət — EduCore SMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Cabinet+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="../../css/app.css"/>
+  <script src="../../js/app.js"></script>
+  <script src="../../js/layout.js"></script>
+  <script>(function(){ const t=localStorage.getItem('theme'); if(t==='light') document.documentElement.setAttribute('data-theme','light'); })();</script>
+  <style>
+    .att-filters{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:22px;}
+    .att-filters .form-group{margin-bottom:0;flex:1;min-width:150px;}
+    .att-filters label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text2);display:block;margin-bottom:6px;}
+    .att-row{display:flex;align-items:center;justify-content:space-between;padding:13px 18px;border-bottom:1px solid var(--border);transition:background .12s;}
+    .att-row:hover{background:rgba(255,255,255,.02);}
+    .att-row:last-child{border-bottom:none;}
+    .att-name{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;}
+    .att-status-sel{background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Cabinet Grotesk',sans-serif;font-size:13px;padding:5px 10px;border-radius:7px;outline:none;cursor:pointer;transition:border-color .15s;}
+    .att-status-sel:focus{border-color:var(--accent);}
+    .att-status-sel.PRESENT{border-color:rgba(76,175,130,.4);color:var(--success);}
+    .att-status-sel.ABSENT{border-color:rgba(239,95,95,.4);color:var(--danger);}
+    .att-status-sel.LATE{border-color:rgba(246,196,83,.4);color:var(--warning);}
+    .att-status-sel.EXCUSED{border-color:rgba(91,196,228,.4);color:var(--info);}
+    .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px;}
+    .mini-stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;}
+    .mini-stat-v{font-family:'Clash Display',sans-serif;font-size:24px;font-weight:700;}
+    .mini-stat-l{font-size:11px;color:var(--text2);margin-top:3px;}
+  </style>
+</head>
+<body>
+<div class="app-layout" id="app">
+  <div class="main-area">
+    <div class="page-content">
+      <div class="att-filters">
+        <div class="form-group">
+          <label>Kurs</label>
+          <select class="form-input form-select" id="courseSel" onchange="onCourseChange()">
+            <option value="">— Kurs seçin —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Tarix</label>
+          <input type="date" class="form-input" id="dateSel" onchange="loadAttendance()"/>
+        </div>
+        <button class="btn btn-primary" onclick="saveAll()" id="saveBtn" disabled><i class="fa-solid fa-floppy-disk"></i> Yadda saxla</button>
+        <button class="btn btn-ghost" onclick="loadStats()" id="statsBtn" disabled><i class="fa-solid fa-chart-bar"></i> Statistika</button>
+      </div>
+
+      <!-- STATS -->
+      <div class="stats-row" id="statsRow" style="display:none">
+        <div class="mini-stat"><div class="mini-stat-v" style="color:var(--success)" id="sPresent">—</div><div class="mini-stat-l">İştirak etdi</div></div>
+        <div class="mini-stat"><div class="mini-stat-v" style="color:var(--danger)" id="sAbsent">—</div><div class="mini-stat-l">İştirak etmədi</div></div>
+        <div class="mini-stat"><div class="mini-stat-v" style="color:var(--warning)" id="sLate">—</div><div class="mini-stat-l">Gecikdi</div></div>
+        <div class="mini-stat"><div class="mini-stat-v" style="color:var(--info)" id="sExcused">—</div><div class="mini-stat-l">Üzürlü</div></div>
+      </div>
+
+      <div class="card" id="attCard" style="display:none">
+        <div class="card-header">
+          <div><div class="card-title" id="attCardTitle">Davamiyyət</div><div class="card-subtitle" id="attCardSub"></div></div>
+          <div class="td-actions">
+            <button class="btn btn-ghost btn-sm" onclick="markAll('PRESENT')"><i class="fa-solid fa-check"></i> Hamısı gəlib</button>
+            <button class="btn btn-ghost btn-sm" onclick="markAll('ABSENT')"><i class="fa-solid fa-xmark"></i> Hamısı gəlməyib</button>
+          </div>
+        </div>
+        <div id="attList"></div>
+        <div style="padding:16px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;">
+          <button class="btn btn-primary" onclick="saveAll()"><i class="fa-solid fa-floppy-disk"></i> Yadda saxla</button>
+        </div>
+      </div>
+
+      <div id="emptyAtt" style="text-align:center;padding:60px 0;color:var(--text3)">
+        <div style="font-size:40px;margin-bottom:12px">📋</div>
+        <div style="font-size:16px;font-weight:500">Kurs və tarix seçin</div>
+        <div style="font-size:14px;margin-top:6px">Davamiyyəti görüntüləmək üçün kurs və tarix seçin</div>
+      </div>
+    </div>
+    <div class="footer-credit">@ by Huseyin Karimli</div>
+  </div>
+</div>
+
+<div id="toast-host" class="toast-host"></div>
+<script>
+document.getElementById('app').insertAdjacentHTML('afterbegin', renderSidebar('../../', 'attendance'));
+document.querySelector('.main-area').insertAdjacentHTML('afterbegin', renderTopbar('Davamiyyət'));
+initTheme(); if (!Auth.check()) throw ''; initSidebarUser();
+
+let students = [], existingRecords = [], selectedCourseId = null;
+const statusLabels = { PRESENT: 'İştirak etdi', ABSENT: 'İştirak etmədi', LATE: 'Gecikdi', EXCUSED: 'Üzürlü' };
+
+// Set today
+const today = new Date().toISOString().slice(0,10);
+document.getElementById('dateSel').value = today;
+
+async function initCourses() {
+  try {
+    let courses = [];
+    if (Auth.isTeacher()) courses = await api.teachers.courses().catch(() => []);
+    else courses = await api.courses.all().catch(() => []);
+    const sel = document.getElementById('courseSel');
+    courses.forEach(c => { const o = document.createElement('option'); o.value = c.id; o.textContent = c.name; sel.appendChild(o); });
+    students = await api.students.all().catch(() => []);
+  } catch(e) { showToast(e.message || 'Xəta', 'error'); }
+}
+
+function onCourseChange() {
+  selectedCourseId = document.getElementById('courseSel').value;
+  if (selectedCourseId) { document.getElementById('saveBtn').disabled = false; document.getElementById('statsBtn').disabled = false; loadAttendance(); }
+}
+
+async function loadAttendance() {
+  if (!selectedCourseId) return;
+  const date = document.getElementById('dateSel').value;
+  if (!date) return;
+  document.getElementById('emptyAtt').style.display = 'none';
+  document.getElementById('attCard').style.display = '';
+  const course = document.getElementById('courseSel').options[document.getElementById('courseSel').selectedIndex];
+  document.getElementById('attCardTitle').textContent = course.text + ' — Davamiyyət';
+  document.getElementById('attCardSub').textContent = new Date(date).toLocaleDateString('az', { year:'numeric',month:'long',day:'numeric' });
+  document.getElementById('attList').innerHTML = students.map(() => `<div class="att-row"><div class="skeleton" style="width:150px;height:14px;"></div><div class="skeleton" style="width:100px;height:28px;"></div></div>`).join('');
+  try {
+    existingRecords = await api.attendance.byCourseDate(selectedCourseId, date).catch(() => []);
+    renderList();
+  } catch(e) { showToast(e.message || 'Xəta', 'error'); }
+}
+
+function renderList() {
+  document.getElementById('attList').innerHTML = students.map(s => {
+    const rec = existingRecords.find(r => r.studentId === s.id);
+    const status = rec ? rec.status : 'PRESENT';
+    return `<div class="att-row">
+      <div class="att-name"><div class="td-av">${(s.name||'?')[0].toUpperCase()}</div>${s.name||''} ${s.surname||''}</div>
+      <select class="att-status-sel ${status}" id="sel_${s.id}" onchange="onStatusChange(this)">
+        <option value="PRESENT" ${status==='PRESENT'?'selected':''}>${statusLabels.PRESENT}</option>
+        <option value="ABSENT" ${status==='ABSENT'?'selected':''}>${statusLabels.ABSENT}</option>
+        <option value="LATE" ${status==='LATE'?'selected':''}>${statusLabels.LATE}</option>
+        <option value="EXCUSED" ${status==='EXCUSED'?'selected':''}>${statusLabels.EXCUSED}</option>
+      </select>
+    </div>`;
+  }).join('');
+}
+
+function onStatusChange(sel) {
+  sel.className = 'att-status-sel ' + sel.value;
+}
+
+function markAll(status) {
+  students.forEach(s => {
+    const sel = document.getElementById('sel_' + s.id);
+    if (sel) { sel.value = status; sel.className = 'att-status-sel ' + status; }
+  });
+}
+
+async function saveAll() {
+  if (!selectedCourseId || !students.length) return;
+  const date = document.getElementById('dateSel').value;
+  const records = students.map(s => ({
+    studentId: s.id,
+    status: document.getElementById('sel_' + s.id)?.value || 'PRESENT'
+  }));
+  const btn = document.getElementById('saveBtn'); btn.disabled = true;
+  try {
+    await api.attendance.batch({ courseId: parseInt(selectedCourseId), date, records });
+    showToast('Davamiyyət yadda saxlandı');
+    loadAttendance();
+  } catch(e) { showToast(e.message || 'Xəta', 'error'); }
+  finally { btn.disabled = false; }
+}
+
+async function loadStats() {
+  if (!selectedCourseId) return;
+  try {
+    const stats = await api.attendance.statsCourse(selectedCourseId);
+    document.getElementById('statsRow').style.display = 'grid';
+    document.getElementById('sPresent').textContent = stats.presentCount || 0;
+    document.getElementById('sAbsent').textContent = stats.absentCount || 0;
+    document.getElementById('sLate').textContent = stats.lateCount || 0;
+    document.getElementById('sExcused').textContent = stats.excusedCount || 0;
+  } catch(e) { showToast(e.message || 'Statistika yüklənəmdi', 'error'); }
+}
+
+initCourses();
+</script>
+</body>
+</html>

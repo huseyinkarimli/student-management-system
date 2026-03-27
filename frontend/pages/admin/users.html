@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>İstifadəçilər — EduCore SMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Cabinet+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="../../css/app.css"/>
+  <script src="../../js/app.js"></script>
+  <script src="../../js/layout.js"></script>
+  <script>(function(){ const t=localStorage.getItem('theme'); if(t==='light') document.documentElement.setAttribute('data-theme','light'); })();</script>
+  <style>
+    .role-chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:100px;margin:2px;}
+    .role-chip.admin{background:rgba(239,95,95,.1);color:var(--danger);}
+    .role-chip.teacher{background:rgba(246,196,83,.1);color:var(--warning);}
+    .role-chip.default{background:var(--accent-dim);color:var(--accent);}
+    .cb-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;max-height:320px;overflow-y:auto;}
+    .cb-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);cursor:pointer;transition:border-color .15s,background .15s;}
+    .cb-item:hover{border-color:var(--accent);background:var(--accent-dim);}
+    .cb-item input{accent-color:var(--accent);}
+    .cb-item label{font-size:13px;cursor:pointer;flex:1;}
+    .cb-item.danger-role label{color:var(--danger);}
+  </style>
+</head>
+<body>
+<div class="app-layout" id="app">
+  <div class="main-area">
+    <div class="page-content">
+      <div class="toolbar">
+        <div class="search-wrap">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" class="form-input" id="searchInp" placeholder="İstifadəçi adı ilə axtar..." oninput="onSearch()"/>
+        </div>
+        <span id="uCount" style="font-size:13px;color:var(--text2)"></span>
+      </div>
+
+      <div class="card">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>İstifadəçi adı</th><th>Rollar</th><th style="text-align:right">Əməliyyat</th></tr></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="footer-credit">@ by Huseyin Karimli</div>
+  </div>
+</div>
+
+<!-- EDIT ROLES MODAL -->
+<div class="modal-overlay" id="rolesModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Rolları redaktə et — <span id="editUsername" style="color:var(--accent)"></span></span>
+      <button class="modal-close" onclick="closeModal('rolesModal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:18px">İstifadəçiyə lazım olan rolları seçin. Admin rolu diqqətlə verin.</p>
+    <div class="cb-grid" id="roleCbs"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('rolesModal')">Ləğv et</button>
+      <button class="btn btn-primary" onclick="saveRoles()" id="saveRoleBtn"><i class="fa-solid fa-check"></i> Yadda saxla</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-host" class="toast-host"></div>
+<script>
+document.getElementById('app').insertAdjacentHTML('afterbegin', renderSidebar('../../', 'admin-users'));
+document.querySelector('.main-area').insertAdjacentHTML('afterbegin', renderTopbar('İstifadəçi İdarəsi'));
+initTheme(); if (!Auth.check()) throw ''; initSidebarUser();
+bindModalClose('rolesModal');
+
+if (!Auth.isAdmin()) { showToast('Bu səhifə yalnız adminlər üçündür', 'error'); setTimeout(() => window.location.href = '../dashboard.html', 1500); }
+
+let users = [], allRoles = [], filtered = [], editUserId = null;
+
+async function load() {
+  document.getElementById('tbody').innerHTML = `<tr><td colspan="4" style="padding:32px;text-align:center"><div class="skeleton" style="width:200px;height:14px;margin:0 auto;"></div></td></tr>`;
+  try {
+    [users, allRoles] = await Promise.all([api.admin.users(), api.admin.roles().catch(() => [])]);
+    filtered = [...users];
+    document.getElementById('uCount').textContent = users.length + ' istifadəçi';
+    render();
+  } catch(e) { showToast(e.message || 'Xəta', 'error'); }
+}
+
+function onSearch() {
+  const q = document.getElementById('searchInp').value.toLowerCase().trim();
+  filtered = users.filter(u => (u.username||'').toLowerCase().includes(q));
+  render();
+}
+
+function getRoleChip(r) {
+  const cls = r.includes('ADMIN') ? 'admin' : r.includes('TEACHER') ? 'teacher' : 'default';
+  return `<span class="role-chip ${cls}">${r.replace('ROLE_','')}</span>`;
+}
+
+function render() {
+  if (!filtered.length) { document.getElementById('tbody').innerHTML = `<tr><td colspan="4" style="padding:40px;text-align:center;color:var(--text3)">İstifadəçi tapılmadı</td></tr>`; return; }
+  document.getElementById('tbody').innerHTML = filtered.map(u => `
+    <tr>
+      <td class="td-muted">#${u.id}</td>
+      <td><div class="td-primary"><div class="td-av">${(u.username||'?')[0].toUpperCase()}</div><span>${u.username||'—'}</span></div></td>
+      <td><div style="display:flex;flex-wrap:wrap;gap:2px">${(u.roles||[]).map(r => getRoleChip(r)).join('') || '<span style="color:var(--text3);font-size:13px">Rol yoxdur</span>'}</div></td>
+      <td style="text-align:right"><button class="btn btn-ghost btn-sm" onclick="openEdit(${u.id},'${(u.username||'').replace(/'/g,"\\'")}')"><i class="fa-solid fa-user-gear"></i> Rolları redaktə et</button></td>
+    </tr>`).join('');
+}
+
+async function openEdit(id, username) {
+  editUserId = id;
+  document.getElementById('editUsername').textContent = username;
+  document.getElementById('roleCbs').innerHTML = '<div class="skeleton" style="height:40px;"></div>'.repeat(4);
+  openModal('rolesModal');
+  try {
+    const currentRoles = await api.admin.userRoles(id);
+    const currentSet = new Set(currentRoles);
+    document.getElementById('roleCbs').innerHTML = allRoles.map(r => {
+      const name = r.name || r;
+      const isAdmin = name.includes('ADMIN');
+      return `<div class="cb-item ${isAdmin?'danger-role':''}">
+        <input type="checkbox" id="role_${name}" value="${name}" ${currentSet.has(name)?'checked':''} />
+        <label for="role_${name}">${name.replace('ROLE_','')}</label>
+        ${isAdmin ? '<i class="fa-solid fa-shield" style="font-size:11px;color:var(--danger)"></i>' : ''}
+      </div>`;
+    }).join('');
+  } catch(e) { showToast(e.message || 'Xəta', 'error'); closeModal('rolesModal'); }
+}
+
+async function saveRoles() {
+  if (!editUserId) return;
+  const checked = [...document.querySelectorAll('#roleCbs input:checked')].map(c => c.value);
+  const btn = document.getElementById('saveRoleBtn'); btn.disabled = true;
+  try {
+    await api.admin.updateRoles(editUserId, checked);
+    showToast('Rollar yeniləndi');
+    closeModal('rolesModal'); load();
+  } catch(e) { showToast(e.message || 'Xəta', 'error'); }
+  finally { btn.disabled = false; }
+}
+
+load();
+</script>
+</body>
+</html>

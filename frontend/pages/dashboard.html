@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard — EduCore SMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Cabinet+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="../css/app.css"/>
+  <script src="../js/app.js"></script>
+  <script src="../js/layout.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script>(function(){ const t=localStorage.getItem('theme'); if(t==='light') document.documentElement.setAttribute('data-theme','light'); })();</script>
+  <style>
+    .charts-grid{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:24px;}
+    .welcome-bar{background:linear-gradient(135deg,rgba(123,110,246,.1) 0%,rgba(240,98,146,.06) 100%);border:1px solid rgba(123,110,246,.2);border-radius:16px;padding:22px 26px;display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+    .wb-left h3{font-family:'Clash Display',sans-serif;font-size:20px;font-weight:600;letter-spacing:-.02em;margin-bottom:4px;}
+    .wb-left p{font-size:14px;color:var(--text2);}
+    .wb-right{font-size:28px;}
+    @media(max-width:900px){.charts-grid{grid-template-columns:1fr;}}
+  </style>
+</head>
+<body>
+<div class="app-layout" id="app">
+  <!-- Sidebar injected by JS -->
+  <div class="main-area">
+    <!-- Topbar injected by JS -->
+    <div class="page-content">
+      <div class="welcome-bar">
+        <div class="wb-left">
+          <h3 id="welcomeMsg">Xoş gəldiniz! 👋</h3>
+          <p>Bugünkü akademik vəziyyətinizə baxın</p>
+        </div>
+        <div class="wb-right">🎓</div>
+      </div>
+
+      <!-- STAT CARDS -->
+      <div class="stat-grid" id="statGrid">
+        <div class="stat-card"><div class="stat-card-glow"></div><div class="stat-icon si-purple skeleton" style="width:40px;height:40px;"></div><div class="skeleton" style="width:70px;height:28px;margin-bottom:6px;margin-top:14px;"></div><div class="skeleton" style="width:100px;height:14px;"></div></div>
+        <div class="stat-card"><div class="stat-card-glow"></div><div class="stat-icon si-green skeleton" style="width:40px;height:40px;"></div><div class="skeleton" style="width:50px;height:28px;margin-bottom:6px;margin-top:14px;"></div><div class="skeleton" style="width:90px;height:14px;"></div></div>
+        <div class="stat-card"><div class="stat-card-glow"></div><div class="stat-icon si-yellow skeleton" style="width:40px;height:40px;"></div><div class="skeleton" style="width:60px;height:28px;margin-bottom:6px;margin-top:14px;"></div><div class="skeleton" style="width:110px;height:14px;"></div></div>
+        <div class="stat-card"><div class="stat-card-glow"></div><div class="stat-icon si-pink skeleton" style="width:40px;height:40px;"></div><div class="skeleton" style="width:55px;height:28px;margin-bottom:6px;margin-top:14px;"></div><div class="skeleton" style="width:80px;height:14px;"></div></div>
+      </div>
+
+      <!-- CHARTS -->
+      <div class="charts-grid">
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Tələbə artımı</div><div class="card-subtitle">Son 6 ay</div></div>
+          </div>
+          <div class="card-body" style="padding-top:12px;">
+            <div style="height:200px;"><canvas id="growthChart"></canvas></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Kurs paylanması</div><div class="card-subtitle">Aktiv kurslar</div></div>
+          </div>
+          <div class="card-body" style="padding-top:12px;">
+            <div style="height:200px;"><canvas id="courseChart"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RECENT STUDENTS -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Son tələbələr</div>
+          <a href="/pages/students.html" class="btn btn-ghost btn-sm">Hamısına bax →</a>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Ad Soyad</th><th>E-poçt</th><th>Yaş</th><th>Status</th></tr></thead>
+            <tbody id="recentBody">
+              <tr><td colspan="4" style="padding:40px;text-align:center;"><div class="skeleton" style="width:200px;height:16px;margin:0 auto;"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="footer-credit">@ by Huseyin Karimli</div>
+  </div>
+</div>
+<div id="toast-host" class="toast-host"></div>
+
+<script>
+document.getElementById('app').insertAdjacentHTML('afterbegin', renderSidebar('../', 'dashboard'));
+document.querySelector('.main-area').insertAdjacentHTML('afterbegin', renderTopbar('Dashboard'));
+
+initTheme();
+if (!Auth.check()) throw '';
+initSidebarUser();
+document.getElementById('welcomeMsg').textContent = 'Xoş gəldiniz, ' + Auth.getUser() + '! 👋';
+
+async function loadDash() {
+  try {
+    const [students, courses] = await Promise.all([
+      api.students.all().catch(() => []),
+      api.courses.all().catch(() => []),
+    ]);
+    const sc = Array.isArray(students) ? students.length : 0;
+    const cc = Array.isArray(courses) ? courses.length : 0;
+
+    document.getElementById('statGrid').innerHTML = `
+      <div class="stat-card"><div class="stat-card-glow"></div>
+        <div class="stat-icon si-purple"><i class="fa-solid fa-users"></i></div>
+        <div class="stat-val">${sc}</div><div class="stat-label">Ümumi tələbə</div>
+      </div>
+      <div class="stat-card"><div class="stat-card-glow"></div>
+        <div class="stat-icon si-green"><i class="fa-solid fa-book-open"></i></div>
+        <div class="stat-val">${cc}</div><div class="stat-label">Aktiv kurslar</div>
+      </div>
+      <div class="stat-card"><div class="stat-card-glow"></div>
+        <div class="stat-icon si-yellow"><i class="fa-solid fa-calendar-check"></i></div>
+        <div class="stat-val">—</div><div class="stat-label">Davamiyyət</div>
+      </div>
+      <div class="stat-card"><div class="stat-card-glow"></div>
+        <div class="stat-icon si-pink"><i class="fa-solid fa-file-lines"></i></div>
+        <div class="stat-val">—</div><div class="stat-label">Tapşırıqlar</div>
+      </div>`;
+
+    // Recent students
+    const recent = students.slice(0, 7);
+    if (!recent.length) {
+      document.getElementById('recentBody').innerHTML = `<tr><td colspan="4" style="padding:40px;text-align:center;color:var(--text3)">Tələbə tapılmadı</td></tr>`;
+    } else {
+      document.getElementById('recentBody').innerHTML = recent.map(s => `
+        <tr>
+          <td><div class="td-primary"><div class="td-av">${(s.name||'?')[0].toUpperCase()}</div><span>${s.name||''} ${s.surname||''}</span></div></td>
+          <td class="td-muted">${s.email||'—'}</td>
+          <td>${s.age||'—'}</td>
+          <td><span class="badge badge-success">Aktiv</span></td>
+        </tr>`).join('');
+    }
+
+    drawGrowth(sc);
+    drawCourses(courses);
+  } catch(e) { showToast('Məlumatlar yüklənərkən xəta baş verdi', 'error'); }
+}
+
+function getGridColor() {
+  return getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || 'rgba(255,255,255,0.06)';
+}
+function getMutedColor() {
+  return getComputedStyle(document.documentElement).getPropertyValue('--text3').trim() || '#606078';
+}
+
+function drawGrowth(total) {
+  const ctx = document.getElementById('growthChart').getContext('2d');
+  const months = ['Yan','Fev','Mar','Apr','May','İyn'];
+  const base = Math.max(1, Math.floor(total * 0.5));
+  const data = months.map((_, i) => Math.floor(base + (total - base) * (i / 5)));
+  data[5] = total;
+  new Chart(ctx, {
+    type: 'line',
+    data: { labels: months, datasets: [{ label: 'Tələbə', data, borderColor: '#7b6ef6', backgroundColor: 'rgba(123,110,246,0.07)', borderWidth: 2.5, fill: true, tension: 0.45, pointBackgroundColor: '#7b6ef6', pointRadius: 4, pointHoverRadius: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+      scales: { x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#9898b0', font: { size: 11 } } }, y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#9898b0', font: { size: 11 } } } } }
+  });
+}
+
+function drawCourses(courses) {
+  const ctx = document.getElementById('courseChart').getContext('2d');
+  const labels = courses.slice(0, 6).map(c => c.name || c.code || 'Kurs');
+  const data = labels.map(() => Math.floor(Math.random() * 20 + 3));
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels: labels.length ? labels : ['Kurs yoxdur'], datasets: [{ data: data.length ? data : [1], backgroundColor: ['#7b6ef6','#f06292','#26c6da','#f6c453','#4caf82','#ef5f5f'], borderWidth: 0, hoverOffset: 8 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { color: '#9898b0', font: { size: 11 }, padding: 12, boxWidth: 10 } } } }
+  });
+}
+
+loadDash();
+</script>
+</body>
+</html>

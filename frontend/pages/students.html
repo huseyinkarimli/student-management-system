@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tələbələr — EduCore SMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Cabinet+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="../css/app.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/layout.js"></script>
+  <script>(function(){ const t=localStorage.getItem('theme'); if(t==='light') document.documentElement.setAttribute('data-theme','light'); })();</script>
+</head>
+<body>
+<div class="app-layout" id="app">
+  <div class="main-area">
+    <div class="page-content">
+      <div class="toolbar">
+        <div class="search-wrap">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" class="form-input" id="searchInp" placeholder="Ad, soyad, e-poçt ilə axtar..." oninput="onSearch()"/>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="openFilterModal()"><i class="fa-solid fa-sliders"></i> Filtr</button>
+        <button class="btn btn-ghost btn-sm" onclick="doExport()"><i class="fa-solid fa-file-excel"></i> Excel</button>
+        <button class="btn btn-primary btn-sm" onclick="openAdd()"><i class="fa-solid fa-plus"></i> Yeni tələbə</button>
+      </div>
+
+      <div class="card">
+        <div class="tbl-meta">
+          <span>Cəmi: <strong id="totalCount">—</strong> tələbə</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:12px;color:var(--text2)">Səhifədə:</span>
+            <select class="per-page-sel" id="ppSel" onchange="onPP()">
+              <option value="10">10</option><option value="25">25</option><option value="50">50</option>
+            </select>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th onclick="sortBy('name')">Ad Soyad</th>
+                <th onclick="sortBy('email')">E-poçt</th>
+                <th onclick="sortBy('age')">Yaş</th>
+                <th>Əməliyyatlar</th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="pag"></div>
+      </div>
+    </div>
+    <div class="footer-credit">@ by Huseyin Karimli</div>
+  </div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-overlay" id="studentModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">Yeni tələbə</span>
+      <button class="modal-close" onclick="closeModal('studentModal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <form id="studentForm" onsubmit="submitStudent(event)">
+      <input type="hidden" id="fId"/>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Ad *</label><input type="text" class="form-input" id="fName" placeholder="Hüseyn" required minlength="2"/></div>
+        <div class="form-group"><label class="form-label">Soyad *</label><input type="text" class="form-input" id="fSurname" placeholder="Kərimli" required minlength="2"/></div>
+      </div>
+      <div class="form-group"><label class="form-label">E-poçt *</label><input type="email" class="form-input" id="fEmail" placeholder="email@example.com" required/></div>
+      <div class="form-group"><label class="form-label">Yaş * (min 18)</label><input type="number" class="form-input" id="fAge" placeholder="20" min="18" max="80" required/></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('studentModal')">Ləğv et</button>
+        <button type="submit" class="btn btn-primary" id="fSubmit"><i class="fa-solid fa-check"></i> Saxla</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- FILTER MODAL -->
+<div class="modal-overlay" id="filterModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Filtr — Yaş aralığı</span>
+      <button class="modal-close" onclick="closeModal('filterModal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Min Yaş</label><input type="number" class="form-input" id="fMinAge" value="18" min="18"/></div>
+      <div class="form-group"><label class="form-label">Max Yaş</label><input type="number" class="form-input" id="fMaxAge" value="60" min="18"/></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="clearFilter()">Filtrı sıfırla</button>
+      <button class="btn btn-primary" onclick="applyAgeFilter()"><i class="fa-solid fa-filter"></i> Tətbiq et</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-host" class="toast-host"></div>
+<script>
+document.getElementById('app').insertAdjacentHTML('afterbegin', renderSidebar('../', 'students'));
+document.querySelector('.main-area').insertAdjacentHTML('afterbegin', renderTopbar('Tələbələr'));
+initTheme(); if (!Auth.check()) throw ''; initSidebarUser();
+bindModalClose('studentModal'); bindModalClose('filterModal');
+
+let all = [], filtered = [], sortCol = null, sortDir = 'asc', page = 1, pp = 10;
+
+async function loadStudents() {
+  document.getElementById('tbody').innerHTML = `<tr><td colspan="4" style="padding:40px;text-align:center"><div class="skeleton" style="width:200px;height:16px;margin:0 auto"></div></td></tr>`;
+  try {
+    all = await api.students.all();
+    filtered = [...all];
+    render();
+  } catch(e) {
+    showToast(e.message || 'Xəta baş verdi', 'error');
+    document.getElementById('tbody').innerHTML = `<tr><td colspan="4" style="padding:40px;text-align:center;color:var(--text3)">Məlumatlar yüklənəmdi</td></tr>`;
+  }
+}
+
+function onSearch() {
+  const q = document.getElementById('searchInp').value.toLowerCase().trim();
+  filtered = all.filter(s => `${s.name||''} ${s.surname||''} ${s.email||''}`.toLowerCase().includes(q));
+  page = 1; render();
+}
+
+function sortBy(col) {
+  if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  else { sortCol = col; sortDir = 'asc'; }
+  filtered = makeSortable(filtered, col, sortDir);
+  render();
+}
+
+function onPP() { pp = parseInt(document.getElementById('ppSel').value); page = 1; render(); }
+
+function render() {
+  document.getElementById('totalCount').textContent = filtered.length;
+  const pageData = filtered.slice((page - 1) * pp, page * pp);
+  if (!filtered.length) {
+    document.getElementById('tbody').innerHTML = '';
+    document.getElementById('tbody').closest('.card').querySelector('.tbl-wrap').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">👨‍🎓</div>
+        <div class="empty-title">Tələbə tapılmadı</div>
+        <div class="empty-desc">Axtarış sorğunuza uyğun nəticə yoxdur.</div>
+        <button class="btn btn-primary" onclick="openAdd()"><i class="fa-solid fa-plus"></i> İlk tələbəni əlavə et</button>
+      </div>`;
+    document.getElementById('pag').innerHTML = '';
+    return;
+  }
+  // Rebuild table if empty state was shown
+  if (!document.querySelector('#tbody')) {
+    document.querySelector('.tbl-wrap').innerHTML = `<table><thead><tr><th onclick="sortBy('name')">Ad Soyad</th><th onclick="sortBy('email')">E-poçt</th><th onclick="sortBy('age')">Yaş</th><th>Əməliyyatlar</th></tr></thead><tbody id="tbody"></tbody></table>`;
+  }
+  document.getElementById('tbody').innerHTML = pageData.map(s => `
+    <tr>
+      <td><div class="td-primary"><div class="td-av">${(s.name||'?')[0].toUpperCase()}</div><span>${s.name||''} ${s.surname||''}</span></div></td>
+      <td class="td-muted">${s.email||'—'}</td>
+      <td>${s.age||'—'}</td>
+      <td><div class="td-actions">
+        <button class="act-btn" onclick="openEdit(${s.id})" title="Redaktə"><i class="fa-solid fa-pen"></i></button>
+        <button class="act-btn danger" onclick="delStudent(${s.id})" title="Sil"><i class="fa-solid fa-trash"></i></button>
+      </div></td>
+    </tr>`).join('');
+  renderPagination('pag', filtered.length, pp, page, 'goPage');
+}
+
+function goPage(p) { page = p; render(); }
+
+function openAdd() {
+  document.getElementById('modalTitle').textContent = 'Yeni tələbə';
+  document.getElementById('fId').value = '';
+  document.getElementById('studentForm').reset();
+  document.getElementById('fSubmit').innerHTML = '<i class="fa-solid fa-check"></i> Saxla';
+  openModal('studentModal');
+}
+
+function openEdit(id) {
+  const s = all.find(x => x.id === id); if (!s) return;
+  document.getElementById('modalTitle').textContent = 'Tələbəni redaktə et';
+  document.getElementById('fId').value = s.id;
+  document.getElementById('fName').value = s.name || '';
+  document.getElementById('fSurname').value = s.surname || '';
+  document.getElementById('fEmail').value = s.email || '';
+  document.getElementById('fAge').value = s.age || '';
+  document.getElementById('fSubmit').innerHTML = '<i class="fa-solid fa-check"></i> Yenilə';
+  openModal('studentModal');
+}
+
+async function submitStudent(e) {
+  e.preventDefault();
+  const id = document.getElementById('fId').value;
+  const body = { name: document.getElementById('fName').value.trim(), surname: document.getElementById('fSurname').value.trim(), email: document.getElementById('fEmail').value.trim(), age: parseInt(document.getElementById('fAge').value) };
+  const btn = document.getElementById('fSubmit'); btn.disabled = true;
+  try {
+    if (id) await api.students.update(parseInt(id), body);
+    else await api.students.create(body);
+    showToast(id ? 'Tələbə yeniləndi' : 'Tələbə əlavə edildi');
+    closeModal('studentModal'); loadStudents();
+  } catch(err) { showToast(err.message || 'Xəta baş verdi', 'error'); }
+  finally { btn.disabled = false; }
+}
+
+async function delStudent(id) {
+  if (!confirm('Bu tələbəni silmək istədiyinizə əminsiniz?')) return;
+  try { await api.students.delete(id); showToast('Tələbə silindi'); loadStudents(); }
+  catch(e) { showToast(e.message || 'Silmək alınmadı', 'error'); }
+}
+
+function openFilterModal() { openModal('filterModal'); }
+
+async function applyAgeFilter() {
+  const min = parseInt(document.getElementById('fMinAge').value) || 18;
+  const max = parseInt(document.getElementById('fMaxAge').value) || 60;
+  try {
+    filtered = await api.students.byAge(min, max);
+    page = 1; render(); closeModal('filterModal');
+    showToast(`Filtr tətbiq edildi: ${min}–${max} yaş`);
+  } catch(e) { showToast(e.message || 'Xəta', 'error'); }
+}
+
+function clearFilter() { filtered = [...all]; page = 1; render(); closeModal('filterModal'); showToast('Filtr sıfırlandı'); }
+
+function doExport() {
+  exportExcel(filtered.map(s => ({ 'Ad': s.name, 'Soyad': s.surname, 'E-poçt': s.email, 'Yaş': s.age })), 'telebeleler.xlsx', 'Tələbələr');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'n' && !e.ctrlKey && !e.metaKey && document.activeElement.tagName !== 'INPUT') openAdd();
+});
+
+loadStudents();
+</script>
+</body>
+</html>

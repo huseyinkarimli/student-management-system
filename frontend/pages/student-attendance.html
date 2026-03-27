@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mənim Davamiyyətim — EduCore SMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Cabinet+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="../css/app.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/layout.js"></script>
+  <script>(function(){ const t=localStorage.getItem('theme'); if(t==='light') document.documentElement.setAttribute('data-theme','light'); })();</script>
+  <style>
+    .att-stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:24px;}
+    .att-course-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
+    .acc-name{font-family:'Clash Display',sans-serif;font-size:15px;font-weight:600;margin-bottom:14px;}
+    .acc-rate{display:flex;align-items:baseline;gap:6px;margin-bottom:8px;}
+    .acc-pct{font-family:'Clash Display',sans-serif;font-size:32px;font-weight:700;}
+    .acc-label{font-size:13px;color:var(--text2);}
+    .acc-bars{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:14px;}
+    .acc-bar-item{text-align:center;}
+    .acc-bar-val{font-family:'Clash Display',sans-serif;font-size:16px;font-weight:700;margin-bottom:3px;}
+    .acc-bar-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;}
+    .record-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);}
+    .record-row:last-child{border-bottom:none;}
+    .record-date{font-size:13px;font-weight:500;}
+    .record-course{font-size:12px;color:var(--text2);}
+  </style>
+</head>
+<body>
+<div class="app-layout" id="app">
+  <div class="main-area">
+    <div class="page-content">
+      <div class="toolbar" style="margin-bottom:24px">
+        <select class="form-input form-select" id="courseSel" style="max-width:250px" onchange="loadForCourse()">
+          <option value="">— Kurs seçin —</option>
+        </select>
+      </div>
+
+      <div id="overallSection" style="display:none">
+        <div class="stat-grid" id="overallStats"></div>
+      </div>
+
+      <div class="att-stat-grid" id="attGrid">
+        <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text3)">
+          <div style="font-size:36px;margin-bottom:12px">📊</div>
+          <div style="font-size:16px;font-weight:500">Kurs seçin</div>
+          <div style="font-size:14px;margin-top:6px">Davamiyyət statistikanızı görmək üçün kurs seçin</div>
+        </div>
+      </div>
+
+      <div id="recordsSection" style="display:none">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Davamiyyət qeydləri</div></div>
+          <div class="card-body" id="recordsList"></div>
+        </div>
+      </div>
+    </div>
+    <div class="footer-credit">@ by Huseyin Karimli</div>
+  </div>
+</div>
+
+<div id="toast-host" class="toast-host"></div>
+<script>
+document.getElementById('app').insertAdjacentHTML('afterbegin', renderSidebar('../', 'student-attendance'));
+document.querySelector('.main-area').insertAdjacentHTML('afterbegin', renderTopbar('Mənim Davamiyyətim'));
+initTheme(); if (!Auth.check()) throw ''; initSidebarUser();
+
+let myStudentId = null;
+
+async function init() {
+  try {
+    const students = await api.students.all().catch(() => []);
+    const me = students.find(s => (s.email||'').includes(Auth.getUser())) || students[0];
+    myStudentId = me ? me.id : null;
+    const enrollments = myStudentId ? await api.enrollments.byStudent(myStudentId).catch(() => []) : [];
+    const sel = document.getElementById('courseSel');
+    enrollments.forEach(e => {
+      const o = document.createElement('option');
+      o.value = e.courseId;
+      o.textContent = e.courseName || 'Kurs ' + e.courseId;
+      sel.appendChild(o);
+    });
+  } catch(e) { showToast(e.message || 'Xəta', 'error'); }
+}
+
+async function loadForCourse() {
+  const cId = document.getElementById('courseSel').value;
+  if (!cId || !myStudentId) return;
+  try {
+    const [stats, records] = await Promise.all([
+      api.attendance.statsStudent(myStudentId, cId).catch(() => null),
+      api.attendance.byStudent(myStudentId, cId).catch(() => [])
+    ]);
+
+    // Stats
+    if (stats) {
+      document.getElementById('overallSection').style.display = '';
+      const total = (stats.presentCount||0) + (stats.absentCount||0) + (stats.lateCount||0) + (stats.excusedCount||0);
+      const rate = total > 0 ? Math.round(((stats.presentCount||0) + (stats.lateCount||0)) / total * 100) : 0;
+      document.getElementById('overallStats').innerHTML = `
+        <div class="stat-card"><div class="stat-card-glow"></div><div class="stat-icon si-purple"><i class="fa-solid fa-percent"></i></div><div class="stat-val">${rate}%</div><div class="stat-label">Davamiyyət faizi</div></div>
+        <div class="stat-card"><div class="stat-card-glow"></div><div class="stat-icon si-green"><i class="fa-solid fa-check"></i></div><div class="stat-val">${stats.presentCount||0}</div><div class="stat-label">İştirak etdi</div></div>
+        <div class="stat-card"><div class="stat-card-glow"></div><div class="stat-icon si-yellow"><i class="fa-solid fa-clock"></i></div><div class="stat-val">${stats.lateCount||0}</div><div class="stat-label">Gecikdi</div></div>
+        <div class="stat-card"><div class="stat-card-glow"></div><div class="stat-icon si-pink"><i class="fa-solid fa-xmark"></i></div><div class="stat-val">${stats.absentCount||0}</div><div class="stat-label">İştirak etmədi</div></div>`;
+    }
+
+    // Records
+    if (records.length) {
+      document.getElementById('recordsSection').style.display = '';
+      const statusMap = { PRESENT: { label: 'İştirak etdi', cls: 'badge-success' }, ABSENT: { label: 'İştirak etmədi', cls: 'badge-danger' }, LATE: { label: 'Gecikdi', cls: 'badge-warning' }, EXCUSED: { label: 'Üzürlü', cls: 'badge-info' } };
+      document.getElementById('recordsList').innerHTML = records.map(r => {
+        const sm = statusMap[r.status] || { label: r.status, cls: 'badge-purple' };
+        return `<div class="record-row">
+          <div><div class="record-date">${r.date ? new Date(r.date).toLocaleDateString('az', {weekday:'short',year:'numeric',month:'long',day:'numeric'}) : '—'}</div></div>
+          <span class="badge ${sm.cls}">${sm.label}</span>
+        </div>`;
+      }).join('');
+    }
+  } catch(e) { showToast(e.message || 'Xəta', 'error'); }
+}
+
+init();
+</script>
+</body>
+</html>

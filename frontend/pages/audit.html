@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Audit Log — EduCore SMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Cabinet+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="../css/app.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/layout.js"></script>
+  <script>(function(){ const t=localStorage.getItem('theme'); if(t==='light') document.documentElement.setAttribute('data-theme','light'); })();</script>
+  <style>
+    .audit-filters{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:22px;}
+    .audit-filters .form-group{margin-bottom:0;min-width:160px;}
+    .audit-filters label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text2);display:block;margin-bottom:6px;}
+    .action-chip{font-size:11px;font-weight:600;padding:3px 9px;border-radius:100px;font-family:'Cabinet Grotesk',sans-serif;}
+    .ac-login{background:rgba(76,175,130,.1);color:var(--success);}
+    .ac-logout{background:rgba(96,96,120,.12);color:var(--text2);}
+    .ac-create{background:rgba(123,110,246,.1);color:var(--accent);}
+    .ac-update{background:rgba(246,196,83,.1);color:var(--warning);}
+    .ac-delete{background:rgba(239,95,95,.1);color:var(--danger);}
+    .ac-other{background:rgba(38,198,218,.1);color:var(--accent3);}
+    .log-detail{font-size:12px;color:var(--text2);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  </style>
+</head>
+<body>
+<div class="app-layout" id="app">
+  <div class="main-area">
+    <div class="page-content">
+      <div class="audit-filters">
+        <div class="form-group">
+          <label>Axtarış növü</label>
+          <select class="form-input form-select" id="filterType" onchange="onTypeChange()">
+            <option value="action">Əməliyyata görə</option>
+            <option value="student">Tələbəyə görə</option>
+            <option value="user">İstifadəçiyə görə</option>
+            <option value="range">Tarix aralığı</option>
+          </select>
+        </div>
+        <div class="form-group" id="actionGroup">
+          <label>Əməliyyat</label>
+          <select class="form-input form-select" id="actionSel">
+            <option value="LOGIN_SUCCESS">LOGIN_SUCCESS</option>
+            <option value="LOGIN_FAILED">LOGIN_FAILED</option>
+            <option value="LOGOUT">LOGOUT</option>
+            <option value="REGISTER_SUCCESS">REGISTER_SUCCESS</option>
+            <option value="REGISTER_FAILED">REGISTER_FAILED</option>
+            <option value="STUDENT_CREATED">STUDENT_CREATED</option>
+            <option value="STUDENT_UPDATED">STUDENT_UPDATED</option>
+            <option value="STUDENT_DELETED">STUDENT_DELETED</option>
+            <option value="STUDENT_VIEWED">STUDENT_VIEWED</option>
+            <option value="STUDENT_SEARCHED">STUDENT_SEARCHED</option>
+            <option value="COURSE_CREATED">COURSE_CREATED</option>
+            <option value="COURSE_UPDATED">COURSE_UPDATED</option>
+            <option value="COURSE_DELETED">COURSE_DELETED</option>
+            <option value="ENROLLMENT_CREATED">ENROLLMENT_CREATED</option>
+            <option value="ENROLLMENT_DELETED">ENROLLMENT_DELETED</option>
+            <option value="GRADE_UPDATED">GRADE_UPDATED</option>
+          </select>
+        </div>
+        <div class="form-group" id="idGroup" style="display:none">
+          <label id="idLabel">ID</label>
+          <input type="number" class="form-input" id="idInp" placeholder="ID daxil edin" min="1"/>
+        </div>
+        <div class="form-group" id="fromGroup" style="display:none">
+          <label>Başlanğıc tarixi</label>
+          <input type="datetime-local" class="form-input" id="fromDt"/>
+        </div>
+        <div class="form-group" id="toGroup" style="display:none">
+          <label>Son tarix</label>
+          <input type="datetime-local" class="form-input" id="toDt"/>
+        </div>
+        <button class="btn btn-primary" onclick="doSearch()"><i class="fa-solid fa-magnifying-glass"></i> Axtar</button>
+        <button class="btn btn-ghost" onclick="doExport()"><i class="fa-solid fa-file-excel"></i> Excel</button>
+      </div>
+
+      <div class="card">
+        <div class="tbl-meta">
+          <span>Nəticə: <strong id="logCount">—</strong> qeyd</span>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Tarix/Vaxt</th><th>Əməliyyat</th><th>Detallar</th></tr></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="pag"></div>
+      </div>
+    </div>
+    <div class="footer-credit">@ by Huseyin Karimli</div>
+  </div>
+</div>
+
+<div id="toast-host" class="toast-host"></div>
+<script>
+document.getElementById('app').insertAdjacentHTML('afterbegin', renderSidebar('../', 'audit'));
+document.querySelector('.main-area').insertAdjacentHTML('afterbegin', renderTopbar('Audit Log'));
+initTheme(); if (!Auth.check()) throw ''; initSidebarUser();
+
+if (!Auth.isAdmin()) { showToast('Bu səhifə yalnız adminlər üçündür', 'error'); setTimeout(() => window.location.href = 'dashboard.html', 1500); }
+
+let logs = [], page = 1, pp = 20;
+
+const now = new Date();
+const weekAgo = new Date(now - 7*24*60*60*1000);
+document.getElementById('fromDt').value = weekAgo.toISOString().slice(0,16);
+document.getElementById('toDt').value = now.toISOString().slice(0,16);
+
+function onTypeChange() {
+  const t = document.getElementById('filterType').value;
+  document.getElementById('actionGroup').style.display = t === 'action' ? '' : 'none';
+  document.getElementById('idGroup').style.display = (t === 'student' || t === 'user') ? '' : 'none';
+  document.getElementById('fromGroup').style.display = t === 'range' ? '' : 'none';
+  document.getElementById('toGroup').style.display = t === 'range' ? '' : 'none';
+  if (t === 'student') document.getElementById('idLabel').textContent = 'Tələbə ID';
+  if (t === 'user') document.getElementById('idLabel').textContent = 'İstifadəçi ID';
+}
+
+async function doSearch() {
+  const t = document.getElementById('filterType').value;
+  document.getElementById('tbody').innerHTML = `<tr><td colspan="3" style="padding:30px;text-align:center"><div class="skeleton" style="width:200px;height:14px;margin:0 auto;"></div></td></tr>`;
+  try {
+    if (t === 'action') { const a = document.getElementById('actionSel').value; logs = await api.audit.byAction(a); }
+    else if (t === 'student') { const id = document.getElementById('idInp').value; if (!id) { showToast('ID daxil edin', 'warning'); return; } logs = await api.audit.byStudent(parseInt(id)); }
+    else if (t === 'user') { const id = document.getElementById('idInp').value; if (!id) { showToast('ID daxil edin', 'warning'); return; } logs = await api.audit.byUser(parseInt(id)); }
+    else if (t === 'range') {
+      const f = document.getElementById('fromDt').value;
+      const to = document.getElementById('toDt').value;
+      if (!f || !to) { showToast('Tarixləri daxil edin', 'warning'); return; }
+      logs = await api.audit.byRange(new Date(f).toISOString(), new Date(to).toISOString());
+    }
+    page = 1; render();
+  } catch(e) { showToast(e.message || 'Xəta', 'error'); document.getElementById('tbody').innerHTML = `<tr><td colspan="3" style="padding:30px;text-align:center;color:var(--text3)">Nəticə tapılmadı</td></tr>`; }
+}
+
+function getActionChip(action) {
+  let cls = 'ac-other';
+  if (/LOGIN|LOGOUT|REGISTER/.test(action)) cls = action.includes('SUCCESS') ? 'ac-login' : action === 'LOGOUT' ? 'ac-logout' : 'ac-delete';
+  else if (/CREATED|ADD/.test(action)) cls = 'ac-create';
+  else if (/UPDATED|GRADE/.test(action)) cls = 'ac-update';
+  else if (/DELETED|DROP/.test(action)) cls = 'ac-delete';
+  return `<span class="action-chip ${cls}">${action}</span>`;
+}
+
+function render() {
+  document.getElementById('logCount').textContent = logs.length;
+  if (!logs.length) { document.getElementById('tbody').innerHTML = `<tr><td colspan="3" style="padding:40px;text-align:center;color:var(--text3)">Nəticə tapılmadı</td></tr>`; document.getElementById('pag').innerHTML = ''; return; }
+  const pageData = logs.slice((page-1)*pp, page*pp);
+  document.getElementById('tbody').innerHTML = pageData.map(l => {
+    const dt = l.timestamp || l.createdAt || l.date;
+    const dtStr = dt ? new Date(dt).toLocaleString('az') : '—';
+    const details = typeof l.details === 'object' ? JSON.stringify(l.details).slice(0,80) : (l.details||l.description||'—');
+    return `<tr>
+      <td class="td-muted" style="white-space:nowrap">${dtStr}</td>
+      <td>${getActionChip(l.action||'—')}</td>
+      <td><div class="log-detail" title="${details}">${details}</div></td>
+    </tr>`;
+  }).join('');
+  renderPagination('pag', logs.length, pp, page, 'goPage');
+}
+
+function goPage(p) { page = p; render(); }
+
+function doExport() {
+  exportExcel(logs.map(l => ({ 'Tarix': l.timestamp||l.createdAt||'', 'Əməliyyat': l.action||'', 'Detallar': JSON.stringify(l.details||l.description||'') })), 'audit_log.xlsx', 'Audit');
+}
+
+// Load on mount
+doSearch();
+</script>
+</body>
+</html>
