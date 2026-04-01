@@ -5,14 +5,21 @@ services:
       - "8080:8080"
     environment:
       - SPRING_PROFILES_ACTIVE=development
-      - SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/student_management?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/student_management?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=root
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=com.mysql.cj.jdbc.Driver
       - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/student_audit
       - SERVER_FORWARD_HEADERS_STRATEGY=framework
       - JWT_SECRET=${JWT_SECRET:-dttDdfdfGghgjjPjfdghhh3hhfgnmr4tc5hhjwTe2v32GelsdSHog5Hfpia3}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-dhhfgnmr4Rtc5hhjwTe2ttDdfdfGghgjjPjfdghhh3v32GelsdwdSHog5Hfpia3}
-    command: java -jar app.jar --spring.h2.console.settings.web-allow-others=true
+    # Appends to image ENTRYPOINT: java -jar /app.jar
+    command: ["--spring.h2.console.settings.web-allow-others=true"]
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_started
+      mysql:
+        condition: service_healthy
     networks:
       - student-network
 
@@ -25,6 +32,25 @@ services:
     networks:
       - student-network
 
+  mysql:
+    image: mysql:8.0
+    container_name: student-management-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: student_management
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 20s
+    networks:
+      - student-network
+
   frontend:
     build: ./frontend
     ports:
@@ -34,20 +60,9 @@ services:
     networks:
       - student-network
 
-  # mysql:
-  #   image: mysql:8.0
-  #   ports:
-  #     - "3306:3306"
-  #   environment:
-  #     MYSQL_ROOT_PASSWORD: root
-  #     MYSQL_DATABASE: student_db
-  #   volumes:
-  #     - mysql-data:/var/lib/mysql
-  #   networks:
-  #     - student-network
-
 volumes:
   mongodb-data:
+  mysql-data:
 
 networks:
   student-network:
